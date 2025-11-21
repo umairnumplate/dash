@@ -1,13 +1,17 @@
 
 import React, { useState } from 'react';
-import { Send, User, FileText, BarChart3, Paperclip, MessageCircle } from 'lucide-react';
-import { Student, Section } from '../types';
+import { Send, User, FileText, BarChart3, Paperclip, MessageCircle, Download, FileUp } from 'lucide-react';
+import { Student, Section, DARS_E_NIZAMI_CLASSES } from '../types'; // Import DARS_E_NIZAMI_CLASSES
+import { WhatsAppButton } from './common/WhatsAppButton';
+import { ImportModal } from './ImportModal'; // Corrected import path
+import * as XLSX from 'xlsx'; // Import xlsx library
+
 
 const mockStudents: Pick<Student, 'id' | 'name' | 'class' | 'parentPhone'>[] = [
     { id: 1, name: 'Abdullah Ahmed', class: 'Hifz A', parentPhone: '923007654321' },
     { id: 2, name: 'Bilal Khan', class: 'Hifz B', parentPhone: '923217654321' },
-    { id: 101, name: 'Usman Ghani', class: 'Darja Awwal', parentPhone: '923337654321' },
-    { id: 102, name: 'Ali Raza', class: 'Darja Saani', parentPhone: '923137654321' },
+    { id: 101, name: 'Usman Ghani', class: DARS_E_NIZAMI_CLASSES[0], parentPhone: '923337654321' },
+    { id: 102, name: 'Ali Raza', class: DARS_E_NIZAMI_CLASSES[1], parentPhone: '923137654321' },
 ];
 
 const reportTypes = [
@@ -21,6 +25,7 @@ export const Reports: React.FC = () => {
     const [selectedReportType, setSelectedReportType] = useState(reportTypes[0].id);
     const [customMessage, setCustomMessage] = useState('');
     const [attachmentName, setAttachmentName] = useState('');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State for import modal
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -48,6 +53,29 @@ export const Reports: React.FC = () => {
             
             window.open(whatsappUrl, '_blank');
         }
+    };
+
+    const handleImportReportData = (importedData: any[]) => {
+        console.log("Importing report data (conceptual):", importedData);
+        // Implement logic to process and store imported report data
+        setIsImportModalOpen(false);
+    };
+
+    const exportReports = () => {
+        const dataToExport = mockStudents.map(s => ({
+            'Student ID': s.id,
+            'Student Name': s.name,
+            'Class': s.class,
+            'Parent Phone': s.parentPhone,
+            'Report Type': selectedReportType,
+            'Custom Message': customMessage,
+            'Attachment': attachmentName,
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Student_Reports");
+        XLSX.writeFile(wb, "Noor-ul-Masajid_Student_Reports.xlsx");
     };
 
     return (
@@ -117,13 +145,33 @@ export const Reports: React.FC = () => {
                     </div>
                  </div>
 
-                <div className="pt-6 border-t dark:border-gray-700 flex justify-end">
+                <div className="pt-6 border-t dark:border-gray-700 flex flex-col sm:flex-row justify-between gap-3">
+                    <div className="flex gap-2">
+                        <button onClick={() => setIsImportModalOpen(true)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 flex items-center text-sm">
+                            <FileUp className="w-4 h-4 mr-2"/> Import Report Data
+                        </button>
+                        <button onClick={exportReports} className="px-4 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 flex items-center text-sm">
+                            <Download className="w-4 h-4 mr-2"/> Export Reports
+                        </button>
+                    </div>
                     <button onClick={handleSendReport} className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 flex items-center text-lg">
                         <MessageCircle className="w-5 h-5 mr-2"/>
                         Send Report to Parent's WhatsApp
                     </button>
                 </div>
             </div>
+            <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportReportData}
+                templateColumns={[
+                    { header: 'Student Name', key: 'Student Name' },
+                    { header: 'Report Type', key: 'Report Type' },
+                    { header: 'Custom Message', key: 'Custom Message', required: false },
+                    { header: 'Attachment Link', key: 'Attachment Link', required: false },
+                ]}
+                title="Import Report Data"
+            />
         </div>
     );
 };

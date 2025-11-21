@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
 import { Section, Graduate } from '../types';
-import { Download, Upload, Search, Award } from 'lucide-react';
+import { Download, Upload, Search, Award, FileUp } from 'lucide-react';
+import { ImportModal } from './ImportModal'; // Corrected import path
+import * as XLSX from 'xlsx'; // Import xlsx library
 
 const mockGraduates: Graduate[] = [
     { id: 1, studentName: 'Hassan Ali', section: Section.Hifz, completionYear: 2022, certificateUrl: '#' },
@@ -13,11 +15,40 @@ const mockGraduates: Graduate[] = [
 export const Graduates: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSection, setFilterSection] = useState<'All' | Section>('All');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State for import modal
+    const [graduates, setGraduates] = useState<Graduate[]>(mockGraduates); // Manage graduates in state
 
-    const filteredGraduates = mockGraduates.filter(g => 
+    const filteredGraduates = graduates.filter(g => 
         (g.studentName.toLowerCase().includes(searchTerm.toLowerCase())) &&
         (filterSection === 'All' || g.section === filterSection)
     );
+
+    const handleImportGraduates = (importedData: any[]) => {
+        const newGraduates: Graduate[] = importedData.map((row, index) => ({
+            id: graduates.length + index + 1, // Simple ID generation
+            studentName: row['Student Name'] || `Unknown Graduate ${index + 1}`,
+            section: row['Section'] === 'Hifz-ul-Quran' ? Section.Hifz : Section.Dars,
+            completionYear: Number(row['Completion Year']) || new Date().getFullYear(),
+            certificateUrl: row['Certificate URL'] || undefined,
+        }));
+        setGraduates(prevGraduates => [...newGraduates, ...prevGraduates]);
+        setIsImportModalOpen(false);
+    };
+
+    const exportToExcel = () => {
+        const dataToExport = filteredGraduates.map(grad => ({
+            'Graduate ID': grad.id,
+            'Student Name': grad.studentName,
+            'Section': grad.section,
+            'Completion Year': grad.completionYear,
+            'Certificate URL': grad.certificateUrl || 'N/A',
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Graduates_List");
+        XLSX.writeFile(wb, "Noor-ul-Masajid_Graduates_List.xlsx");
+    };
 
     return (
         <div className="space-y-6">
@@ -45,9 +76,14 @@ export const Graduates: React.FC = () => {
                         <option value={Section.Dars}>Dars-e-Nizami</option>
                     </select>
                 </div>
-                <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center w-full md:w-auto justify-center">
-                    <Download className="w-4 h-4 mr-2"/> Export List
-                </button>
+                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <button onClick={() => setIsImportModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center">
+                        <FileUp className="w-4 h-4 mr-2"/> Import
+                    </button>
+                    <button onClick={exportToExcel} className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center justify-center">
+                        <Download className="w-4 h-4 mr-2"/> Export List
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
@@ -91,6 +127,18 @@ export const Graduates: React.FC = () => {
                     </table>
                  </div>
             </div>
+            <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportGraduates}
+                templateColumns={[
+                    { header: 'Student Name', key: 'Student Name' },
+                    { header: 'Section', key: 'Section' }, // Expected: Hifz-ul-Quran or Dars-e-Nizami
+                    { header: 'Completion Year', key: 'Completion Year' },
+                    { header: 'Certificate URL', key: 'Certificate URL', required: false },
+                ]}
+                title="Import Graduate Students"
+            />
         </div>
     );
 };

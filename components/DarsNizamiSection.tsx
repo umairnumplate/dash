@@ -1,11 +1,15 @@
 
 import React, { useState } from 'react';
-import { Phone, Book, FileText, MessageCircle, Download, Plus, Search, ChevronRight, Edit3 } from 'lucide-react';
-import { Student, Section, ExamRecord } from '../types';
+import { Phone, Book, FileText, MessageCircle, Download, Plus, Search, ChevronRight, Edit3, FileUp } from 'lucide-react';
+import { Student, Section, ExamRecord, DARS_E_NIZAMI_CLASSES } from '../types'; // Import DARS_E_NIZAMI_CLASSES
+import { AddStudentModal } from './AddStudentModal';
+import { WhatsAppButton } from './common/WhatsAppButton';
+import { ImportModal } from './ImportModal'; // Corrected import path
+import * as XLSX from 'xlsx'; // Import xlsx library
 
-const mockStudents: Student[] = [
-    { id: 101, name: 'Usman Ghani', fatherName: 'Abdul Ghani', class: 'Darja Awwal', section: Section.Dars, rollNumber: 'D-201', dob: '2006-08-10', cnic: '35202-3456789-3', phone: '923331234567', parentPhone: '923337654321', address: '789, Gulberg, Lahore', photoUrl: 'https://picsum.photos/seed/usman/200', admissionDate: '2022-04-01' },
-    { id: 102, name: 'Ali Raza', fatherName: 'Raza Mehmood', class: 'Darja Saani', section: Section.Dars, rollNumber: 'D-202', dob: '2005-03-25', cnic: '35202-4567890-4', phone: '923131234567', parentPhone: '923137654321', address: '101, Model Town, Lahore', photoUrl: 'https://picsum.photos/seed/ali/200', admissionDate: '2022-04-05' },
+const initialStudents: Student[] = [
+    { id: 101, name: 'Usman Ghani', fatherName: 'Abdul Ghani', class: 'Mutawassitah', section: Section.Dars, rollNumber: 'D-201', dob: '2006-08-10', cnic: '35202-3456789-3', phone: '923331234567', parentPhone: '923337654321', address: '789, Gulberg, Lahore', photoUrl: 'https://picsum.photos/seed/usman/200', admissionDate: '2022-04-01' },
+    { id: 102, name: 'Ali Raza', fatherName: 'Raza Mehmood', class: 'Khasa Awwal', section: Section.Dars, rollNumber: 'D-202', dob: '2005-03-25', cnic: '35202-4567890-4', phone: '923131234567', parentPhone: '923137654321', address: '101, Model Town, Lahore', photoUrl: 'https://picsum.photos/seed/ali/200', admissionDate: '2022-04-05' },
 ];
 
 const mockExams: ExamRecord[] = [
@@ -14,16 +18,6 @@ const mockExams: ExamRecord[] = [
 ];
 
 const teacherNotes = "Usman shows great potential in Fiqh but needs to focus more on his handwriting and presentation in assignments.";
-
-const WhatsAppButton: React.FC<{ phoneNumber: string }> = ({ phoneNumber }) => {
-    const formattedNumber = phoneNumber.replace(/\D/g, '');
-    return (
-        <a href={`https://wa.me/${formattedNumber}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-sm text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300">
-            <MessageCircle className="w-4 h-4 mr-1" />
-            WhatsApp
-        </a>
-    );
-};
 
 const StudentProfile: React.FC<{ student: Student; onBack: () => void }> = ({ student, onBack }) => {
     return (
@@ -37,8 +31,8 @@ const StudentProfile: React.FC<{ student: Student; onBack: () => void }> = ({ st
                     <h2 className="text-2xl font-bold">{student.name}</h2>
                     <p className="text-gray-500 dark:text-gray-400">Roll No: {student.rollNumber} | Class: {student.class}</p>
                     <div className="flex items-center space-x-4 mt-2">
-                        <WhatsAppButton phoneNumber={student.phone} />
-                        <WhatsAppButton phoneNumber={student.parentPhone} />
+                        <WhatsAppButton phoneNumber={student.phone} label="Student WhatsApp" />
+                        <WhatsAppButton phoneNumber={student.parentPhone} label="Parent WhatsApp" />
                     </div>
                 </div>
             </div>
@@ -82,11 +76,67 @@ const StudentProfile: React.FC<{ student: Student; onBack: () => void }> = ({ st
 export const DarsNizamiSection: React.FC = () => {
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [students, setStudents] = useState<Student[]>(initialStudents);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State for import modal
 
-    const filteredStudents = mockStudents.filter(s =>
+    const filteredStudents = students.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.rollNumber.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    const handleAddStudent = (newStudentData: Omit<Student, 'id' | 'photoUrl'> & { photoFile?: File }) => {
+        const newStudent: Student = {
+            ...newStudentData,
+            id: students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 101,
+            photoUrl: newStudentData.photoFile ? URL.createObjectURL(newStudentData.photoFile) : `https://picsum.photos/seed/${Date.now()}/200`,
+        };
+        setStudents(prevStudents => [newStudent, ...prevStudents]);
+    };
+
+    const handleImportStudents = (importedData: any[]) => {
+        const newStudents: Student[] = importedData.map((row, index) => ({
+            id: students.length + index + 1, // Simple ID generation
+            name: row['Student Name'] || `Unknown Student ${index + 1}`,
+            fatherName: row['Father Name'] || 'N/A',
+            class: row['Class'] || DARS_E_NIZAMI_CLASSES[0],
+            section: Section.Dars,
+            rollNumber: row['Roll Number'] || `D-${students.length + index + 1}`,
+            dob: row['Date of Birth'] || '2000-01-01',
+            cnic: row['CNIC/B-Form'] || 'N/A',
+            phone: row['Student Phone'] || 'N/A',
+            parentPhone: row['Parent Phone'] || 'N/A',
+            address: row['Address'] || 'N/A',
+            photoUrl: row['Photo URL'] || `https://picsum.photos/seed/${Date.now() + index}/200`,
+            admissionDate: row['Admission Date'] || new Date().toISOString().substring(0, 10),
+        }));
+        setStudents(prevStudents => [...newStudents, ...prevStudents]);
+        setIsImportModalOpen(false);
+    };
+
+    const exportToExcel = () => {
+        const dataToExport = students.map(student => ({
+            'Student ID': student.id,
+            'Student Name': student.name,
+            'Father Name': student.fatherName,
+            'Class': student.class,
+            'Section': student.section,
+            'Roll Number': student.rollNumber,
+            'Date of Birth': student.dob,
+            'CNIC/B-Form': student.cnic,
+            'Student Phone': student.phone,
+            'Parent Phone': student.parentPhone,
+            'Address': student.address,
+            'Admission Date': student.admissionDate,
+            'Photo URL': student.photoUrl,
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Dars_e_Nizami_Students");
+        XLSX.writeFile(wb, "Noor-ul-Masajid_Dars_e_Nizami_Students.xlsx");
+    };
+
 
     if (selectedStudent) {
         return <StudentProfile student={selectedStudent} onBack={() => setSelectedStudent(null)} />;
@@ -96,7 +146,7 @@ export const DarsNizamiSection: React.FC = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <h2 className="text-2xl font-bold">Dars-e-Nizami Students</h2>
-                 <div className="flex items-center gap-4 w-full md:w-auto">
+                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
                          <input 
@@ -107,8 +157,14 @@ export const DarsNizamiSection: React.FC = () => {
                             className="w-full pl-10 pr-4 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
                          />
                     </div>
-                    <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center">
+                    <button onClick={exportToExcel} className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center">
                         <Download className="w-4 h-4 mr-2"/> Export
+                    </button>
+                    <button onClick={() => setIsImportModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
+                        <FileUp className="w-4 h-4 mr-2"/> Import
+                    </button>
+                    <button onClick={() => setIsAddModalOpen(true)} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
+                        <Plus className="w-4 h-4 mr-2"/> Add Student
                     </button>
                 </div>
             </div>
@@ -149,6 +205,30 @@ export const DarsNizamiSection: React.FC = () => {
                     </table>
                 </div>
             </div>
+            <AddStudentModal 
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onAddStudent={handleAddStudent}
+                section={Section.Dars}
+            />
+            <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportStudents}
+                templateColumns={[
+                    { header: 'Student Name', key: 'Student Name' },
+                    { header: 'Father Name', key: 'Father Name' },
+                    { header: 'Class', key: 'Class' },
+                    { header: 'Roll Number', key: 'Roll Number' },
+                    { header: 'Date of Birth', key: 'Date of Birth' },
+                    { header: 'CNIC/B-Form', key: 'CNIC/B-Form' },
+                    { header: 'Student Phone', key: 'Student Phone' },
+                    { header: 'Parent Phone', key: 'Parent Phone' },
+                    { header: 'Address', key: 'Address' },
+                    { header: 'Admission Date', key: 'Admission Date' },
+                ]}
+                title="Import Dars-e-Nizami Students"
+            />
         </div>
     );
 };

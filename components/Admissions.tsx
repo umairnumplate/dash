@@ -1,197 +1,164 @@
-import React, { useState, useRef } from 'react';
-import { AdmissionData } from '../types';
-import { User, Phone, Home, FileText, Camera, Upload, Printer } from 'lucide-react';
-import ReactToPrint from 'react-to-print';
 
-const FeeReceipt: React.FC<{ data: AdmissionData, receiptRef: React.RefObject<HTMLDivElement> }> = ({ data, receiptRef }) => {
-    return (
-        <div ref={receiptRef} className="p-8 font-sans text-black bg-white">
-            <div className="text-center border-b-2 border-black pb-4">
-                <h1 className="text-3xl font-bold">Noor-ul-Masajid Education System</h1>
-                <p className="text-lg">Tanzim-ul-Madaris Admission Fee Receipt</p>
-            </div>
-            <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
-                <div><strong className="font-semibold">Receipt No:</strong> {Math.floor(1000 + Math.random() * 9000)}</div>
-                <div><strong className="font-semibold">Date:</strong> {new Date().toLocaleDateString()}</div>
-                <div><strong className="font-semibold">Student Name:</strong> {data.fullName}</div>
-                <div><strong className="font-semibold">Father's Name:</strong> {data.fatherName}</div>
-                <div><strong className="font-semibold">Class/Level:</strong> {data.classLevel}</div>
-                <div><strong className="font-semibold">Exam Category:</strong> {data.examCategory}</div>
-            </div>
-            <div className="mt-8">
-                <table className="w-full border-collapse border border-black">
-                    <thead>
-                        <tr className="bg-gray-200">
-                            <th className="border border-black p-2 text-left">Description</th>
-                            <th className="border border-black p-2 text-right">Amount (PKR)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td className="border border-black p-2">Admission Fee</td>
-                            <td className="border border-black p-2 text-right">5,000.00</td>
-                        </tr>
-                        <tr>
-                            <td className="border border-black p-2">Exam Fee</td>
-                            <td className="border border-black p-2 text-right">2,500.00</td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr className="font-bold">
-                            <td className="border border-black p-2 text-right">Total</td>
-                            <td className="border border-black p-2 text-right">7,500.00</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-            <div className="mt-12 text-center text-sm">
-                <p>This is a computer-generated receipt and does not require a signature.</p>
-                <p>&copy; Noor-ul-Masajid Education System</p>
-            </div>
-        </div>
-    );
-};
+import React, { useState } from 'react';
+import { Admission } from '../types';
+import { FilePlus, List, DollarSign } from 'lucide-react';
+import { AdmissionForm } from './AdmissionForm';
+import { AdmissionList } from './AdmissionList';
+import { AdmissionFees } from './AdmissionFees';
+import { FeeReceipt } from './FeeReceipt'; // Import for type safety, though rendered by form/fees
 
+type AdmissionSubPage = 'Form' | 'List' | 'Fees';
+
+const initialAdmissions: Admission[] = [
+    {
+        id: 1,
+        photoUrl: 'https://picsum.photos/seed/admission1/200',
+        fullName: 'Aisha Khan',
+        fatherName: 'Dr. Zafar Khan',
+        dob: '2008-01-20',
+        cnic: '35202-9876543-1',
+        studentPhone: '923011122334',
+        parentPhone: '923011122335',
+        address: 'House 5, Street 10, Garden Town, Lahore',
+        classLevel: 'Mutawassitah', // Updated class name
+        examCategory: 'Annual',
+        previousAcademicDetails: 'Completed Primary Hifz from XYZ Madrasah.',
+        teacherInCharge: 'Maulana Ahmed Ali',
+        admissionDate: '2024-03-01',
+        feeChecklist: [
+            { id: 'adm_fee', name: 'Admission Fee', amount: 5000, paid: true, dateOfPayment: '2024-03-01', verified: true },
+            { id: 'exam_fee', name: 'Examination Fee', amount: 2500, paid: true, dateOfPayment: '2024-03-01', verified: true },
+            { id: 'reg_fee', name: 'Registration Fee', amount: 1000, paid: false, verified: false },
+            { id: 'form_proc_fee', name: 'Form Processing Fee', amount: 500, paid: true, dateOfPayment: '2024-03-01', verified: true },
+        ],
+        admissionStatus: 'Confirmed',
+        receiptImage: null,
+    },
+    {
+        id: 2,
+        photoUrl: 'https://picsum.photos/seed/admission2/200',
+        fullName: 'Usama Tariq',
+        fatherName: 'Tariq Mehmood',
+        dob: '2007-06-15',
+        cnic: '35202-8765432-1',
+        studentPhone: '923022233445',
+        parentPhone: '923022233446',
+        address: 'Flat 12, Block A, Green Towers, Karachi',
+        classLevel: 'Ama Awwal', // Updated class name
+        examCategory: 'Annual',
+        previousAcademicDetails: 'Completed Darja Awwal from Jamia Zia-ul-Quran.',
+        teacherInCharge: 'Ustadh Bilal Hussain',
+        admissionDate: '2024-03-10',
+        feeChecklist: [
+            { id: 'adm_fee', name: 'Admission Fee', amount: 5000, paid: true, dateOfPayment: '2024-03-10', verified: true },
+            { id: 'exam_fee', name: 'Examination Fee', amount: 2500, paid: false, verified: false },
+            { id: 'reg_fee', name: 'Registration Fee', amount: 1000, paid: false, verified: false },
+            { id: 'form_proc_fee', name: 'Form Processing Fee', amount: 500, paid: false, verified: false },
+        ],
+        admissionStatus: 'Pending Review',
+        receiptImage: null,
+    }
+];
 
 export const Admissions: React.FC = () => {
-    const [formData, setFormData] = useState<AdmissionData>({
-        fullName: '', fatherName: '', dob: '', cnic: '', parentPhone: '', address: '', classLevel: '', examCategory: '', feeSubmitted: false,
-    });
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const receiptRef = useRef<HTMLDivElement>(null);
-    
-    const handlePrint = ReactToPrint.useReactToPrint({
-        content: () => receiptRef.current,
-    });
+    const [currentSubPage, setCurrentSubPage] = useState<AdmissionSubPage>('List');
+    const [allAdmissions, setAllAdmissions] = useState<Admission[]>(initialAdmissions);
+    const [admissionToView, setAdmissionToView] = useState<Admission | null>(null);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+    const handleAddAdmission = (newAdmission: Admission) => {
+        setAllAdmissions(prev => [newAdmission, ...prev]);
+        setCurrentSubPage('List'); // Go to list after adding
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'photo' | 'receiptImage') => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setFormData(prev => ({ ...prev, [field]: file }));
-            if (field === 'photo') {
-                setPhotoPreview(URL.createObjectURL(file));
-            }
+    const handleUpdateAdmission = (updatedAdmission: Admission) => {
+        setAllAdmissions(prev => prev.map(adm => adm.id === updatedAdmission.id ? updatedAdmission : adm));
+        if (admissionToView && admissionToView.id === updatedAdmission.id) {
+            setAdmissionToView(updatedAdmission); // Update if currently viewing
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        console.log('Admission Data:', formData);
-        alert('Admission Submitted Successfully!');
-        if(formData.feeSubmitted){
-            handlePrint();
+    const renderSubPage = () => {
+        if (admissionToView) {
+            // Placeholder for a detailed view/edit component for a single admission
+            // For now, we'll just show its JSON. In a real app, this would be a dedicated component.
+            return (
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                    <button onClick={() => setAdmissionToView(null)} className="text-primary-600 dark:text-primary-400 hover:underline mb-4">
+                        &larr; Back to Admissions List
+                    </button>
+                    <h3 className="text-xl font-bold mb-4">Admission Details for {admissionToView.fullName}</h3>
+                    <pre className="whitespace-pre-wrap text-sm dark:text-gray-300">
+                        {JSON.stringify(admissionToView, null, 2)}
+                    </pre>
+                     <div className="mt-4">
+                        <h4 className="font-semibold mb-2">Generate/Print Receipt:</h4>
+                         <FeeReceipt admission={admissionToView} receiptRef={React.useRef<HTMLDivElement>(null)}/>
+                     </div>
+                </div>
+            );
+        }
+
+        switch (currentSubPage) {
+            case 'Form':
+                return <AdmissionForm onAddAdmission={handleAddAdmission} />;
+            case 'List':
+                return <AdmissionList admissions={allAdmissions} onViewDetails={setAdmissionToView} />;
+            case 'Fees':
+                return <AdmissionFees admissions={allAdmissions} onUpdateAdmission={handleUpdateAdmission} />;
+            default:
+                return <AdmissionList admissions={allAdmissions} onViewDetails={setAdmissionToView} />;
         }
     };
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Tanzim-ul-Madaris Admissions</h2>
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Photo Upload */}
-                    <div className="md:col-span-1 flex flex-col items-center">
-                        <div className="w-40 h-40 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-700">
-                            {photoPreview ? (
-                                <img src={photoPreview} alt="Student" className="w-full h-full object-cover rounded-lg" />
-                            ) : (
-                                <Camera className="w-16 h-16 text-gray-400" />
-                            )}
-                        </div>
-                        <label htmlFor="photo" className="cursor-pointer mt-2 text-sm text-primary-600 hover:underline">
-                            Upload Photo
-                        </label>
-                        <input id="photo" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'photo')} />
-                    </div>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Tanzim-ul-Madaris Admissions – Noor-ul-Masajid</h2>
+            
+            <div className="bg-white dark:bg-gray-800 p-2 rounded-xl shadow-md flex space-x-2">
+                <TabButton
+                    label="Admission Form"
+                    icon={FilePlus}
+                    isActive={currentSubPage === 'Form'}
+                    onClick={() => {setCurrentSubPage('Form'); setAdmissionToView(null);}}
+                />
+                <TabButton
+                    label="Admission List"
+                    icon={List}
+                    isActive={currentSubPage === 'List'}
+                    onClick={() => {setCurrentSubPage('List'); setAdmissionToView(null);}}
+                />
+                <TabButton
+                    label="Admission Fees"
+                    icon={DollarSign}
+                    isActive={currentSubPage === 'Fees'}
+                    onClick={() => {setCurrentSubPage('Fees'); setAdmissionToView(null);}}
+                />
+            </div>
 
-                    {/* Personal Details */}
-                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InputField label="Full Name" name="fullName" value={formData.fullName} onChange={handleInputChange} icon={User} required />
-                        <InputField label="Father's Name" name="fatherName" value={formData.fatherName} onChange={handleInputChange} icon={User} required />
-                        <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleInputChange} required />
-                        <InputField label="CNIC / B-Form" name="cnic" value={formData.cnic} onChange={handleInputChange} icon={FileText} required />
-                        <InputField label="Parent's Phone" name="parentPhone" value={formData.parentPhone} onChange={handleInputChange} icon={Phone} required />
-                        <InputField label="Home Address" name="address" value={formData.address} onChange={handleInputChange} icon={Home} required />
-                    </div>
-                </div>
-
-                {/* Academic & Fee Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t dark:border-gray-700">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Class/Level</label>
-                        <select name="classLevel" value={formData.classLevel} onChange={handleInputChange} required className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-                            <option value="">Select Class</option>
-                            <option>Darja Awwal</option>
-                            <option>Darja Saani</option>
-                            <option>Darja Salisa</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Exam Category</label>
-                        <select name="examCategory" value={formData.examCategory} onChange={handleInputChange} required className="w-full p-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-                            <option value="">Select Category</option>
-                            <option>Annual</option>
-                            <option>Supplementary</option>
-                        </select>
-                    </div>
-                     <div className="md:col-span-2 space-y-4">
-                        <div className="flex items-center">
-                            <input
-                                id="feeSubmitted"
-                                name="feeSubmitted"
-                                type="checkbox"
-                                checked={formData.feeSubmitted}
-                                onChange={e => setFormData(p => ({...p, feeSubmitted: e.target.checked}))}
-                                className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                            />
-                            <label htmlFor="feeSubmitted" className="ml-2 block text-sm text-gray-900 dark:text-gray-200">
-                                Fees Submitted
-                            </label>
-                        </div>
-                        {formData.feeSubmitted && (
-                             <div className="pl-6">
-                                <label htmlFor="receiptImage" className="flex items-center cursor-pointer text-sm text-primary-600 hover:underline">
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Upload Image of Receipt
-                                </label>
-                                <input id="receiptImage" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'receiptImage')} />
-                             </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex justify-end pt-6 border-t dark:border-gray-700">
-                    <button type="submit" className="px-6 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700">
-                        Submit Admission & Print Receipt
-                    </button>
-                </div>
-            </form>
-            <div style={{ display: 'none' }}>
-                <FeeReceipt data={formData} receiptRef={receiptRef} />
+            <div className="mt-6">
+                {renderSubPage()}
             </div>
         </div>
     );
 };
 
-const InputField: React.FC<{ label: string, name: string, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, icon?: React.ElementType, type?: string, required?: boolean }> = 
-({ label, name, value, onChange, icon: Icon, type = 'text', required = false }) => (
-    <div>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-        <div className="relative">
-            {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>}
-            <input
-                id={name}
-                name={name}
-                type={type}
-                value={value}
-                onChange={onChange}
-                required={required}
-                className={`w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500`}
-            />
-        </div>
-    </div>
+interface TabButtonProps {
+    label: string;
+    icon: React.ElementType;
+    isActive: boolean;
+    onClick: () => void;
+}
+
+const TabButton: React.FC<TabButtonProps> = ({ label, icon: Icon, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200
+            ${isActive
+                ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-200 shadow-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+    >
+        <Icon className="mr-2 h-4 w-4" />
+        {label}
+    </button>
 );

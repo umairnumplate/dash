@@ -1,38 +1,64 @@
-import React, { useState } from 'react';
-import { Section, Student, AttendanceStatus } from '../types';
-import { Download, Calendar, Users, BarChart } from 'lucide-react';
 
-// FIX: Added missing 'fatherName' property to mock student data to match the Omit<Student, ...> type.
+import React, { useState } from 'react';
+// Import AttendanceMap from types.ts
+import { Section, Student, AttendanceStatus, DARS_E_NIZAMI_CLASSES, HIFZ_CLASSES, AttendanceMap } from '../types'; // Import DARS_E_NIZAMI_CLASSES, HIFZ_CLASSES, and AttendanceMap
+import { Download, Calendar, Users, BarChart, FileUp } from 'lucide-react';
+import { ImportModal } from './ImportModal'; // Corrected import path
+import * as XLSX from 'xlsx'; // Import xlsx library
+
+// Helper to generate mock students for a given set of classes
+const generateMockStudents = (classNames: string[], sectionPrefix: string, startId: number, countPerClass: number) => {
+    let students: Omit<Student, 'section' | 'dob' | 'cnic' | 'phone' | 'parentPhone' | 'address' | 'admissionDate' | 'photoUrl'>[] = [];
+    classNames.forEach((className, classIndex) => {
+        for (let i = 0; i < countPerClass; i++) {
+            const id = startId + (classIndex * countPerClass) + i + 1;
+            students.push({
+                id: id,
+                name: `${className} Student ${i + 1}`,
+                fatherName: `Parent ${id}`,
+                class: className,
+                rollNumber: `${sectionPrefix}-${(classIndex + 1)}${String(i + 1).padStart(2, '0')}`
+            });
+        }
+    });
+    return students;
+};
+
+// Generate all mock students for Hifz and Dars-e-Nizami
 const mockStudents: Omit<Student, 'section' | 'dob' | 'cnic' | 'phone' | 'parentPhone' | 'address' | 'admissionDate' | 'photoUrl'>[] = [
-    ...Array.from({ length: 15 }, (_, i) => ({ id: i + 1, name: `Abdullah Ahmed ${i+1}`, fatherName: `Ahmed Ali ${i+1}`, class: 'Hifz A', rollNumber: `H-10${i+1}` })),
-    ...Array.from({ length: 15 }, (_, i) => ({ id: i + 101, name: `Usman Ghani ${i+1}`, fatherName: `Ghani Khan ${i+1}`, class: 'Darja Awwal', rollNumber: `D-20${i+1}` })),
+    ...generateMockStudents(HIFZ_CLASSES, 'H', 1, 15), // 15 students per Hifz class
+    ...generateMockStudents(DARS_E_NIZAMI_CLASSES, 'D', 1000, 10), // 10 students per Dars-e-Nizami class
 ];
 
-type AttendanceMap = { [studentId: number]: AttendanceStatus };
-
-const classes = ['Hifz A', 'Hifz B', 'Darja Awwal', 'Darja Saani'];
+// Combine all classes for the dropdown
+const classes = [...HIFZ_CLASSES, ...DARS_E_NIZAMI_CLASSES];
 
 export const Attendance: React.FC = () => {
     const [selectedClass, setSelectedClass] = useState(classes[0]);
+    // Use AttendanceMap type for the attendance state
     const [attendance, setAttendance] = useState<AttendanceMap>({});
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().substring(0, 10));
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State for import modal
 
     const studentsInClass = mockStudents.filter(s => s.class === selectedClass);
 
     React.useEffect(() => {
         // Initialize attendance for the selected class
+        // Use AttendanceMap type for initialAttendance
         const initialAttendance: AttendanceMap = {};
         studentsInClass.forEach(student => {
             initialAttendance[student.id] = AttendanceStatus.Present;
         });
         setAttendance(initialAttendance);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedClass]);
+    }, [selectedClass, selectedDate]); // Added selectedDate to dependency array
 
     const handleStatusChange = (studentId: number, status: AttendanceStatus) => {
         setAttendance(prev => ({ ...prev, [studentId]: status }));
     };
 
     const markAll = (status: AttendanceStatus.Present | AttendanceStatus.Absent) => {
+        // Use AttendanceMap type for newAttendance
         const newAttendance: AttendanceMap = {};
         studentsInClass.forEach(student => {
             newAttendance[student.id] = status;
@@ -40,12 +66,44 @@ export const Attendance: React.FC = () => {
         setAttendance(newAttendance);
     };
 
-    const summary = Object.values(attendance).reduce((acc, status) => {
+    // Explicitly type the summary object
+    const summary: { present: number; absent: number; leave: number } = Object.values(attendance).reduce((acc, status) => {
         if (status === AttendanceStatus.Present) acc.present++;
         else if (status === AttendanceStatus.Absent) acc.absent++;
         else acc.leave++;
         return acc;
-    }, { present: 0, absent: 0, leave: 0 });
+    }, { present: 0, absent: 0, leave: 0 }); // Initialize with correct type
+
+    const handleImportAttendance = (importedData: any[]) => {
+        // Use AttendanceMap type for newAttendanceRecords
+        const newAttendanceRecords: AttendanceMap = {};
+        importedData.forEach((row) => {
+            const student = mockStudents.find(s => s.rollNumber === row['Roll Number']);
+            if (student && row['Status']) {
+                const status = row['Status'] as AttendanceStatus;
+                if (Object.values(AttendanceStatus).includes(status)) {
+                    newAttendanceRecords[student.id] = status;
+                }
+            }
+        });
+        setAttendance(prev => ({ ...prev, ...newAttendanceRecords }));
+        setIsImportModalOpen(false);
+    };
+
+    const exportToExcel = () => {
+        const dataToExport = studentsInClass.map(student => ({
+            'Date': selectedDate,
+            'Class': student.class,
+            'Roll Number': student.rollNumber,
+            'Student Name': student.name,
+            'Status': attendance[student.id] || AttendanceStatus.Absent, // Default to Absent if not marked
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `Attendance_${selectedClass}_${selectedDate}`);
+        XLSX.writeFile(wb, `Noor-ul-Masajid_Attendance_${selectedClass}_${selectedDate}.xlsx`);
+    };
 
     return (
         <div className="space-y-6">
@@ -62,14 +120,18 @@ export const Attendance: React.FC = () => {
                     </select>
                     <input
                         type="date"
-                        defaultValue={new Date().toISOString().substring(0, 10)}
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
                         className="p-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={() => markAll(AttendanceStatus.Present)} className="px-4 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600">All Present</button>
                     <button onClick={() => markAll(AttendanceStatus.Absent)} className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600">All Absent</button>
-                    <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center">
+                    <button onClick={() => setIsImportModalOpen(true)} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                        <FileUp className="w-4 h-4 mr-2"/> Import
+                    </button>
+                    <button onClick={exportToExcel} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center">
                         <Download className="w-4 h-4 mr-2"/> Export
                     </button>
                 </div>
@@ -124,6 +186,16 @@ export const Attendance: React.FC = () => {
                     <button className="px-6 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700">Save Attendance</button>
                  </div>
             </div>
+            <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportAttendance}
+                templateColumns={[
+                    { header: 'Roll Number', key: 'Roll Number' },
+                    { header: 'Status', key: 'Status' }, // Expected values: Present, Absent, Leave
+                ]}
+                title="Import Attendance"
+            />
         </div>
     );
 };

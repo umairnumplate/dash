@@ -1,18 +1,23 @@
 
 import React, { useState } from 'react';
 import { MessageSquare, Users, BookOpen, Send, FileUp, GraduationCap } from 'lucide-react';
+import { ImportModal } from './ImportModal'; // Corrected import path
+import { DARS_E_NIZAMI_CLASSES } from '../types'; // Import DARS_E_NIZAMI_CLASSES
 
-const classes = ['All Students', 'Hifz - All', 'Hifz A', 'Hifz B', 'Dars-e-Nizami - All', 'Darja Awwal', 'Darja Saani'];
+const classes = ['All Students', 'Hifz - All', 'Hifz A', 'Hifz B', 'Dars-e-Nizami - All', ...DARS_E_NIZAMI_CLASSES]; // Use new Dars-e-Nizami classes
 
 export const Messaging: React.FC = () => {
     const [message, setMessage] = useState('');
     const [selectedClass, setSelectedClass] = useState(classes[0]);
-    const [fileName, setFileName] = useState('');
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false); // State for import modal
+    const [importedNumbersCount, setImportedNumbersCount] = useState(0);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFileName(e.target.files[0].name);
-        }
+    const handleImportNumbers = (importedData: any[]) => {
+        // This is a simplified import. In a real app, you'd process these numbers
+        // e.g., filter, validate, and store them, then use them for sending.
+        console.log("Imported numbers:", importedData);
+        setImportedNumbersCount(importedData.length);
+        setIsImportModalOpen(false);
     };
     
     const handleSend = () => {
@@ -21,7 +26,7 @@ export const Messaging: React.FC = () => {
             return;
         }
         // This is a simulation. In a real app, this would trigger a backend process.
-        alert(`Simulating sending message to ${selectedClass}:\n\n"${message}"\n\n(Imported file: ${fileName || 'None'})`);
+        alert(`Simulating sending message to ${selectedClass}:\n\n"${message}"\n\n(Imported numbers: ${importedNumbersCount > 0 ? importedNumbersCount : 'None'})`);
     }
 
     return (
@@ -62,13 +67,12 @@ export const Messaging: React.FC = () => {
                         <div className="pt-4 border-t dark:border-gray-700">
                              <h3 className="text-lg font-semibold flex items-center mb-2">
                                 <FileUp className="mr-2 text-gray-500" />
-                                Import from Excel
+                                Import Numbers from Excel
                             </h3>
-                            <label htmlFor="excel-import" className="w-full flex items-center justify-center p-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <button onClick={() => setIsImportModalOpen(true)} className="w-full flex items-center justify-center p-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
                                 <FileUp className="w-5 h-5 mr-2 text-gray-400"/>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">{fileName || 'Click to upload numbers'}</span>
-                            </label>
-                            <input id="excel-import" type="file" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleFileChange}/>
+                                <span className="text-sm">{importedNumbersCount > 0 ? `${importedNumbersCount} numbers imported` : 'Click to upload numbers'}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -80,6 +84,16 @@ export const Messaging: React.FC = () => {
                     </button>
                 </div>
             </div>
+            <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportNumbers}
+                templateColumns={[
+                    { header: 'Phone Number', key: 'Phone Number' },
+                    { header: 'Student Name', key: 'Student Name', required: false },
+                ]}
+                title="Import Contact Numbers"
+            />
         </div>
     );
 };

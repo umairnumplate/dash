@@ -1,15 +1,19 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, BookOpen, UserCheck, FilePlus, Users, MessageSquare, Send, BarChart2, Moon, Sun, Menu, X, GraduationCap } from 'lucide-react';
+import { Home, BookOpen, UserCheck, FilePlus, Users, MessageSquare, Send, BarChart2, Moon, Sun, Menu, X, GraduationCap, DollarSign } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { HifzSection } from './components/HifzSection';
 import { DarsNizamiSection } from './components/DarsNizamiSection';
 import { Attendance } from './components/Attendance';
-import { Admissions } from './components/Admissions';
+import { Admissions } from './components/Admissions'; // This is now the parent component
 import { Graduates } from './components/Graduates';
 import { Messaging } from './components/Messaging';
 import { Reports } from './components/Reports';
 import { Login } from './components/Login';
+import './components/common/InputField'; // Import to ensure it's part of the build
+import './components/common/SelectField'; // Import to ensure it's part of the build
+import './components/common/WhatsAppButton'; // Import to ensure it's part of the build
+
 
 type Page = 'Login' | 'Dashboard' | 'Hifz' | 'Dars-e-Nizami' | 'Attendance' | 'Admissions' | 'Graduates' | 'Messaging' | 'Reports';
 
@@ -26,7 +30,7 @@ const App: React.FC = () => {
             setIsDarkMode(true);
         } else {
             document.documentElement.classList.remove('dark');
-            setIsDarkMode(false);
+            localStorage.setItem('theme', 'light');
         }
     }, []);
 
